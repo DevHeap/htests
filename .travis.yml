@@ -1,0 +1,7 @@
+matrix:
+  include:
+    - language: rust
+      cache: cargo
+      rust: nightly
+      script:
+        - cargo test

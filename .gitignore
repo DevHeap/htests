@@ -1,0 +1,7 @@
+**/target/
+**/.idea/
+graylog/config/node-id
+graylog/data
+.env
+deployment/traefik/traefik
+deployment/traefik/traefik.docker_hash
