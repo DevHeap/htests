@@ -21,13 +21,13 @@ use std::fmt::Display;
 /// #![feature(box_syntax)]
 /// extern crate hyper;
 /// extern crate futures;
-/// extern crate circles_common;
+/// extern crate common;
 ///
 /// use hyper::Request;
 /// use futures::future;
-/// use circles_common::http::FutureHandled;
-/// use circles_common::http::error::ErrorKind;
-/// use circles_common::http::ServerResponse;
+/// use common::http::FutureHandled;
+/// use common::http::error::ErrorKind;
+/// use common::http::ServerResponse;
 ///
 /// fn call(req: Request) -> FutureHandled {
 ///     # let success_condition = true;
@@ -94,12 +94,12 @@ where
 ///
 /// ```
 /// extern crate hyper;
-/// extern crate circles_common;
+/// extern crate common;
 ///
 /// use std::error::Error;
 /// use std::fmt;
 /// use hyper::StatusCode;
-/// use circles_common::http::ApiError;
+/// use common::http::ApiError;
 ///
 /// #[derive(Debug)]
 /// enum MyError {
