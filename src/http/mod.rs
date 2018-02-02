@@ -3,6 +3,7 @@ pub mod service;
 pub mod error;
 pub mod header;
 pub mod response;
+pub mod middleware;
 
 pub use self::response::ApiError;
 pub use self::response::ServerResponse;

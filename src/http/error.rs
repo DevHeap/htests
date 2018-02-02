@@ -27,6 +27,11 @@ error_chain!{
             description("missing UserID header")
             display("missing UserID header")
         }
+
+        UnfinishedChain {
+            description("middleware chain haven't produced response")
+            display("middleware chain haven't produced response")
+        }
     }
 }
 
@@ -42,6 +47,7 @@ impl From<Error> for ApiError {
             ErrorKind::MissingUserIDHeader => {
                 ApiError::with_status(&e, StatusCode::InternalServerError)
             }
+            ErrorKind::UnfinishedChain => ApiError::with_status(&e, StatusCode::InternalServerError),
             ErrorKind::Msg(..) => ApiError::with_status(&e, StatusCode::InternalServerError),
         }
     }
