@@ -1,9 +1,9 @@
-use common::db::AsyncPgPool;
-use common::db::query::*;
-use common::http;
-use common::http::FutureHandled;
-use common::http::ServerResponse;
-use common::http::header::UserID;
+use db::AsyncPgPool;
+use db::query::*;
+use http;
+use http::FutureHandled;
+use http::ServerResponse;
+use http::header::UserID;
 
 use futures::{Future, Stream};
 use futures::future::ok;

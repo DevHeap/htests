@@ -3,23 +3,21 @@
 use db::Error;
 use db::Result;
 
-use diesel::pg::PgConnection;
-
 use r2d2;
 use r2d2::{Pool, PooledConnection};
-use r2d2_diesel::ConnectionManager;
+use r2d2_postgres::PostgresConnectionManager as ConnectionManager;
+use r2d2_postgres::TlsMode;
 
 /// Synchronous PgConnection pool
-pub type SyncPgPool = Pool<ConnectionManager<PgConnection>>;
+pub type SyncPgPool = Pool<ConnectionManager>;
 
 /// Pooled connection from Synchronous PgConnection pool
-pub type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
+pub type PgPooledConnection = PooledConnection<ConnectionManager>;
 
 /// Connect to PostgreSQL DMBS and produce a sync connection pool
 pub fn connect(db_uri: &str) -> Result<SyncPgPool> {
-    let config = r2d2::Config::default();
-    let manager = ConnectionManager::<PgConnection>::new(db_uri);
-    Ok(r2d2::Pool::new(config, manager)?)
+    let manager = ConnectionManager::new(db_uri, TlsMode::None)?;
+    Ok(r2d2::Pool::new(manager)?)
 }
 
 /// Async PgConnection pool build on top of sync connection pool and a thread pool

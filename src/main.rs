@@ -1,26 +1,42 @@
 #![feature(proc_macro, conservative_impl_trait, generators, box_syntax)]
 #![recursion_limit = "1024"]
 
-extern crate tokio_core;
-extern crate futures;
-extern crate hyper;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json as json;
 extern crate chrono;
 
-#[macro_use]
-extern crate error_chain;
+extern crate r2d2;
+extern crate r2d2_postgres;
+extern crate postgres;
+
+extern crate futures;
+extern crate futures_cpupool;
 
 #[macro_use]
 extern crate log;
 extern crate fern;
-extern crate serde_json as json;
+extern crate hyper;
+extern crate reqwest;
+extern crate openssl;
 
 #[macro_use]
-extern crate common;
+extern crate error_chain;
+
+extern crate tokio_core;
+
+/// Database model, schema and convenience traits
+pub mod db;
+/// Tokens decode and verification routines
+pub mod token;
+/// Everything for Hyper and Http servers
+#[macro_use]
+pub mod http;
 
 mod login;
 
-use common::db::AsyncPgPool;
-use common::http;
+use db::AsyncPgPool;
 
 use futures::Stream;
 use http::service::Authenticator;

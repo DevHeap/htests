@@ -4,32 +4,29 @@ use db::AsyncPgPool;
 use db::error::Error;
 use db::models::*;
 
-use diesel;
-use diesel::ExecuteDsl;
-
 use futures_cpupool::CpuFuture;
 
 /// Convenient trait to simplify object insertion
 pub trait Insert {
     /// Insertion consumes the object Self and returns a future numbers of changed rows
-    fn insert(self, pool: &AsyncPgPool) -> CpuFuture<usize, Error>;
+    fn insert(self, pool: &AsyncPgPool) -> CpuFuture<u64, Error>;
 }
 
 impl Insert for User {
-    fn insert(self, pool: &AsyncPgPool) -> CpuFuture<usize, Error> {
-        use db::schema::users::dsl::*;
+    fn insert(self, pool: &AsyncPgPool) -> CpuFuture<u64, Error> {
         use futures::future::result;
-        use diesel::insert;
-        use diesel::prelude::*;
-        use diesel::pg::upsert::*;
 
         // Insert an authentified user or, if user exists, just update
         pool.request(move |conn| {
             result(
-                insert(&self.on_conflict(uid, do_update().set(&self.auth_data())))
-                    .into(users)
-                    .execute(&*conn)
-                    .map_err(Error::from),
+                conn.execute(
+                    "INSERT INTO users VALUES($1, $2, $3, $4)
+                     ON CONFLICT DO UPDATE SET auth_time = $3, auth_until = $4", &[
+                        &self.username,
+                        &self.email,
+                        &self.auth_time,
+                        &self.auth_until
+                ]).map_err(Error::from)
             )
         })
     }
