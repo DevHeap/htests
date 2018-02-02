@@ -8,27 +8,22 @@ use hyper::server::NewService;
 use hyper::server::Service;
 use std::io;
 
+use http::middleware::{
+    Chains,
+    Middleware,
+    Transition,
+    FutureTransition
+};
+
 /// `/health` service returning OK status if microservice is running (obviously)
 #[derive(Debug, Copy, Clone)]
 pub struct Health;
 
-impl NewService for Health {
-    type Request = Request;
-    type Response = Response;
-    type Error = hyper::Error;
-    type Instance = Health;
-    fn new_service(&self) -> io::Result<Self::Instance> {
-        Ok(Health)
-    }
-}
-
-impl Service for Health {
-    type Request = Request;
-    type Response = Response;
-    type Error = hyper::Error;
-    type Future = FutureHandled;
-    fn call(&self, _req: Request) -> Self::Future {
-        box ok(ServerResponse::Data(HealthStatus::ok()).into())
+impl Middleware for Health {
+    fn handle(&self, _req: Request) -> FutureTransition {
+        box ok(Transition::Response(
+            ServerResponse::Data(HealthStatus::ok()).into()
+        ))
     }
 }
 

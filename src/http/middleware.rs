@@ -22,9 +22,30 @@ pub struct Chains {
     chains: ChainsInner
 }
 
+pub struct ChainsBuilder {
+    chains: Vec<Box<Middleware>>
+}
+
 impl Chains {
+    pub fn builder() -> ChainsBuilder {
+        ChainsBuilder { chains: vec![] }
+    }
+
     pub fn get(&self, idx: usize) -> Option<&Middleware> {
         self.chains.get(idx).map(|m| &**m)
+    }
+}
+
+impl ChainsBuilder {
+    pub fn chain(mut self, chain: Box<Middleware>) -> Self {
+        self.chains.push(chain);
+        self
+    }
+
+    pub fn build(self) -> Chains {
+        Chains {
+            chains: ChainsInner::new(self.chains)
+        }
     }
 }
 
@@ -51,7 +72,9 @@ impl Service for Chains {
 
         let chains = self.clone();
 
-        let future = loop_fn((req, 0), move |(req, idx)| -> Box<Future<Item = Loop<_, _>, Error = hyper::Error>> {
+        type LoopResult<L, B> = Box<Future<Item = Loop<L, B>, Error = hyper::Error>>;
+
+        let future = loop_fn((req, 0), move |(req, idx)| -> LoopResult<_, _> {
             if let Some(chain) = chains.get(idx) {
                 box chain.handle(req).and_then(move |ts| {
                     match ts {
@@ -77,11 +100,13 @@ impl Service for Chains {
     }
 }
 
+pub type FutureTransition = Box<Future<Item = Transition, Error = hyper::Error>>;
+
 pub enum Transition {
     Request(Request),
     Response(Response)
 }
 
 pub trait Middleware {
-    fn handle(&self, req: Request) -> Box<Future<Item = Transition, Error = hyper::Error>>;
+    fn handle(&self, req: Request) -> FutureTransition;
 }

@@ -14,6 +14,7 @@ use http::ServerResponse;
 use http::error::Error;
 use http::error::ErrorKind;
 use http::header::UserID;
+use http::middleware::{Middleware, Transition, FutureTransition};
 
 use hyper;
 use hyper::{Request, Response};
@@ -29,48 +30,19 @@ use std::rc::Rc;
 /// For usage example please refer to one of already implemented microservices
 pub struct Authenticator {
     auth: Rc<AsyncTokenVerifier>,
-    next_chain: Rc<HandlerFactory>,
     users_db_updater: Rc<UsersDbUpdater>,
 }
 
 impl Authenticator {
     /// Create a new AuthenticatorService factory with persistent state
-    pub fn new(db: Rc<AsyncPgPool>, next_chain: Rc<HandlerFactory>) -> Self {
+    pub fn new(db: Rc<AsyncPgPool>) -> Self {
         info!("Created Authenticator (Service Factory)");
         Authenticator {
             auth: Rc::new(AsyncTokenVerifier::new()),
-            next_chain,
             users_db_updater: Rc::new(UsersDbUpdater::new(db)),
         }
     }
-}
 
-impl NewService for Authenticator {
-    type Request = Request;
-    type Response = Response;
-    type Error = hyper::Error;
-    type Instance = AuthenticatorService;
-
-    fn new_service(&self) -> io::Result<Self::Instance> {
-        debug!("Created Authenticator Service");
-        let service = AuthenticatorService {
-            auth: self.auth.clone(),
-            next_chain: self.next_chain.clone(),
-            users_db_updater: self.users_db_updater.clone(),
-        };
-        Ok(service)
-    }
-}
-
-/// AuthenticatorService is responsible for tokens verification
-/// and populating the database with user info
-pub struct AuthenticatorService {
-    auth: Rc<AsyncTokenVerifier>,
-    next_chain: Rc<HandlerFactory>,
-    users_db_updater: Rc<UsersDbUpdater>,
-}
-
-impl AuthenticatorService {
     fn extract_token(req: &Request) -> Result<&str, ApiError> {
         let headers = req.headers();
         let bearer: &Authorization<Bearer> = headers.get().ok_or(ApiError::from(
@@ -81,31 +53,24 @@ impl AuthenticatorService {
     }
 }
 
-impl Service for AuthenticatorService {
-    type Request = Request;
-    type Response = Response;
-    type Error = hyper::Error;
-    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
-
-    fn call(&self, mut req: Request) -> Self::Future {
+impl Middleware for Authenticator {
+    fn handle(&self, mut req: Request) -> Box<Future<Item = Transition, Error = hyper::Error>> {
         trace!("accepted {} request for {}", req.method(), req.uri());
         trace!("headers: {:?}", req.headers());
 
-        // Extract IDToken from headers
+        // Extract Token from headers
         let token = match Self::extract_token(&req) {
             Ok(token) => token.to_owned(),
-            Err(error) => return box future::ok(ServerResponse::from(error).into()),
+            Err(error) => return box future::ok(
+                Transition::Response(ServerResponse::from(error).into())
+            ),
         };
-
-        let next_chain = self.next_chain.new_service()
-        // Can never happen. Really.
-            .unwrap();
 
         let users_db = self.users_db_updater.clone();
 
         // Either pass the request to the Dispatcher or return error response to a client
         let future_response = self.auth.authenticate(token).map_err(Error::from).then(
-            move |auth_result| -> FutureHandled {
+            move |auth_result| -> FutureTransition {
                 match auth_result {
                     Ok(token) => {
                         debug!("authorized request from user {}", token.user_id());
@@ -117,8 +82,10 @@ impl Service for AuthenticatorService {
                         // Update users database table and proceed to the router
                         let db_future = users_db.update_if_needed(&token).then(
                             move |res| match res {
-                                Ok(..) => next_chain.call(req),
-                                Err(e) => box future::ok(ServerResponse::from(e).into()),
+                                Ok(..) => box future::ok(Transition::Request(req)),
+                                Err(e) => box future::ok(
+                                    Transition::Response(ServerResponse::from(e).into())
+                                ),
                             },
                         );
 
@@ -127,7 +94,9 @@ impl Service for AuthenticatorService {
                     }
                     Err(e) => {
                         debug!("attempted unathorized access to {}", req.path());
-                        box future::ok(ServerResponse::from(e).into())
+                        box future::ok(
+                            Transition::Response(ServerResponse::from(e).into())
+                        )
                     }
                 }
             },

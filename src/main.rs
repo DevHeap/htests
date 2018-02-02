@@ -54,6 +54,8 @@ use tokio_core::reactor;
 
 use login::LoginHandler;
 
+use http::middleware::Chains;
+
 // @TODO move to a shared library, implement log.toml config file
 fn init_logger() -> Result<(), log::SetLoggerError> {
     let (tx, rx) = channel();
@@ -94,19 +96,22 @@ fn main() {
     let mut core = reactor::Core::new().expect("Failed to initialize event loop");
     let handle = core.handle();
 
+    // Authenticator for token verification and user info population in the database
+    let authenticator = Authenticator::new(pgpool.clone());
+
     // Router to dispatch requests for concrete pathes to their handlers
     let router = router!(
-        post_login:     Method::Post, "/login"  => Rc::new(LoginHandler::new(pgpool.clone())),
-        health:         Method::Get,  "/health" => Rc::new(Health),
+        post_login:     Method::Post, "/login"      => Rc::new(LoginHandler::new(pgpool.clone())),
+        restricted:     Method::Get,  "/restricted" => Rc::new(Chains::builder()
+            .chain(Box::new(authenticator))
+            .chain(Box::new(Health))
+            .build()),
     );
-
-    // Authenticator for firebase token verification and user info population in the database
-    let authenticator = Authenticator::new(pgpool.clone(), Rc::new(router));
 
     // Starting TCP server listening for incoming commections
     let listener = TcpListener::bind(&addr, &handle).unwrap();
     let server = listener.incoming().for_each(move |(sock, addr)| {
-        let entry_service = authenticator.new_service()
+        let entry_service = router.new_service()
         // Can never happen
             .unwrap();
 
