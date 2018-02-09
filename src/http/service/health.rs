@@ -1,18 +1,11 @@
-use futures::future::ok;
-use http::FutureHandled;
-use http::ServerResponse;
-use hyper;
 use hyper::Request;
-use hyper::Response;
-use hyper::server::NewService;
-use hyper::server::Service;
-use std::io;
+
+use futures::prelude::*;
 
 use http::middleware::{
-    Chains,
     Middleware,
     Transition,
-    FutureTransition
+    TransitionResult
 };
 
 /// `/health` service returning OK status if microservice is running (obviously)
@@ -20,10 +13,9 @@ use http::middleware::{
 pub struct Health;
 
 impl Middleware for Health {
-    fn handle(&self, _req: Request) -> FutureTransition {
-        box ok(Transition::Response(
-            ServerResponse::Data(HealthStatus::ok()).into()
-        ))
+    #[async(boxed)]
+    fn handle(self: Box<Self>, _req: Request) -> TransitionResult {
+        Ok(Transition::success(HealthStatus::ok()))
     }
 }
 

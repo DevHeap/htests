@@ -11,7 +11,7 @@ extern crate r2d2;
 extern crate r2d2_postgres;
 extern crate postgres;
 
-extern crate futures;
+extern crate futures_await as futures;
 extern crate futures_cpupool;
 
 #[macro_use]
@@ -97,7 +97,7 @@ fn main() {
     let handle = core.handle();
 
     // Authenticator for token verification and user info population in the database
-    let authenticator = Authenticator::new(pgpool.clone());
+    let authenticator = Authenticator::new();
 
     // Router to dispatch requests for concrete pathes to their handlers
     let router = router!(

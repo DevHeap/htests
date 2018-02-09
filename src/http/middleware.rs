@@ -5,6 +5,7 @@ use hyper;
 use hyper::server::{Request, Response};
 use hyper::server::{Service, NewService};
 
+use http::ApiError;
 use http::error::ErrorKind;
 use http::ServerResponse;
 
@@ -15,15 +16,16 @@ use futures::future::{
     Loop,
 };
 
-type ChainsInner = Rc<Vec<Box<Middleware>>>;
+type ChainsInner = Vec<Box<CloneableMiddleware>>;
+type RcChainsInner = Rc<Vec<Box<CloneableMiddleware>>>;
 
 #[derive(Clone)]
 pub struct Chains {
-    chains: ChainsInner
+    chains: RcChainsInner
 }
 
 pub struct ChainsBuilder {
-    chains: Vec<Box<Middleware>>
+    chains: ChainsInner
 }
 
 impl Chains {
@@ -31,20 +33,20 @@ impl Chains {
         ChainsBuilder { chains: vec![] }
     }
 
-    pub fn get(&self, idx: usize) -> Option<&Middleware> {
-        self.chains.get(idx).map(|m| &**m)
+    pub fn get(&self, idx: usize) -> Option<Box<Middleware>> {
+        self.chains.get(idx).map(|m| CloneableMiddleware::clone(&**m))
     }
 }
 
 impl ChainsBuilder {
-    pub fn chain(mut self, chain: Box<Middleware>) -> Self {
+    pub fn chain(mut self, chain: Box<CloneableMiddleware>) -> Self {
         self.chains.push(chain);
         self
     }
 
     pub fn build(self) -> Chains {
         Chains {
-            chains: ChainsInner::new(self.chains)
+            chains: RcChainsInner::new(self.chains)
         }
     }
 }
@@ -100,6 +102,8 @@ impl Service for Chains {
     }
 }
 
+
+pub type TransitionResult = Result<Transition, hyper::Error>;
 pub type FutureTransition = Box<Future<Item = Transition, Error = hyper::Error>>;
 
 pub enum Transition {
@@ -107,6 +111,34 @@ pub enum Transition {
     Response(Response)
 }
 
+use serde::Serialize;
+
+impl Transition {
+    pub fn errored<E: Into<ApiError>>(e: E) -> Transition {
+        Transition::Response(
+            ServerResponse::from(
+                e.into()
+            ).into()
+        )
+    }
+
+    pub fn success<D: Serialize>(d: D) -> Transition {
+        Transition::Response(
+            ServerResponse::Data(d).into()
+        )
+    }
+}
+
 pub trait Middleware {
-    fn handle(&self, req: Request) -> FutureTransition;
+    fn handle(self: Box<Self>, req: Request) -> FutureTransition;
+}
+
+pub trait CloneableMiddleware: Middleware {
+    fn clone(&self) -> Box<Middleware>;
+}
+
+impl<T: Middleware + Clone + 'static> CloneableMiddleware for T {
+    fn clone(&self) -> Box<Middleware> {
+        box Clone::clone(self)
+    }
 }
