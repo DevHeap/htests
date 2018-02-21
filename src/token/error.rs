@@ -18,19 +18,14 @@ error_chain! {
     }
 
     errors {
-        FailedToRetrieveKeyring(status: StatusCode) {
-            description("failed to retrieve google keyring")
-            display("failed to retrieve google keyring: {}", status)
+        TokenExpired {
+            description("token expired")
+            display("token expired")
         }
 
-        EmptyUserID {
-            description("userid is empty")
-            display("userid is empty")
-        }
-
-        UnknownKeyID {
-            description("unknown key id")
-            display("unknown key id")
+        DecodeFailed{
+            description("token decode failed")
+            display("token decode failed")
         }
     }
 }
@@ -52,7 +47,6 @@ impl<'a> From<&'a ErrorKind> for ApiError {
     fn from(ek: &'a ErrorKind) -> Self {
         use token::ErrorKind::*;
         match *ek {
-            FailedToRetrieveKeyring(..) |
             Io(..) |
             Hyper(..) |
             OpenSSL(..) |

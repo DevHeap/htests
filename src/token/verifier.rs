@@ -5,7 +5,6 @@ use token::{Result, Error, ErrorKind};
 use token::Token;
 
 use json;
-use openssl::aes::AesKey;
 use reqwest;
 use reqwest::StatusCode;
 
@@ -16,7 +15,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-pub type Key = AesKey;
+pub use sodiumoxide::crypto::secretbox::xsalsa20poly1305::Key;
 
 /// TokenVerifier verifies tokens using the key
 pub struct TokenVerifier {
