@@ -25,6 +25,7 @@ extern crate openssl;
 extern crate error_chain;
 
 extern crate tokio_core;
+extern crate sodiumoxide;
 
 /// Database model, schema and convenience traits
 pub mod db;
@@ -89,8 +90,8 @@ fn main() {
 
     // Connection to database
     // @TODO read db uri from config file
-    let db_uri = "postgres://devheap:Olb5Ind3rT@localhost/circles-dev";
-    let pgpool = Rc::new(AsyncPgPool::connect(db_uri).unwrap());
+//    let db_uri = "postgres://devheap:Olb5Ind3rT@localhost/circles-dev";
+//    let pgpool = Rc::new(AsyncPgPool::connect(db_uri).unwrap());
 
     // Starting tokio event loop
     let mut core = reactor::Core::new().expect("Failed to initialize event loop");
@@ -101,7 +102,7 @@ fn main() {
 
     // Router to dispatch requests for concrete pathes to their handlers
     let router = router!(
-        post_login:     Method::Post, "/login"      => Rc::new(LoginHandler::new(pgpool.clone())),
+//        post_login:     Method::Post, "/login"      => Rc::new(LoginHandler::new(pgpool.clone())),
         restricted:     Method::Get,  "/restricted" => Rc::new(Chains::builder()
             .chain(Box::new(authenticator))
             .chain(Box::new(Health))

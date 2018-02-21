@@ -73,6 +73,7 @@ impl Token {
 
         let t_now = Utc::now();
         let t_created = Utc.timestamp(self.created, 0);
+
         let max_duration = Duration::seconds(LIFETIME);
 
         if t_now.signed_duration_since(t_created) > max_duration {
